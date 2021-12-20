@@ -1,19 +1,25 @@
 var async = require('async');
+var fs = require('fs-extra');
 var auth = exports;
+
+// Check for local shadow password database
+var shadowfile = '/etc/shadow';
+fs.stat('shadow', function (err, stat) {
+  shadowfile = 'shadow';
+});
 
 auth.authenticate_shadow = function(user, plaintext, callback) {
   var hash = require('sha512crypt-node');
-  var fs = require('fs-extra');
 
   function etc_shadow(inner_callback) {
     // return true if error, false if auth failed, string for user if successful
     var passwd = require('etc-passwd');
 
-    fs.stat('/etc/shadow', function(err, stat_info) {
+    fs.stat(shadowfile, function(err, stat_info) {
       if (err)
         inner_callback(true);
       else {
-        passwd.getShadow({username: user}, function(err, shadow_info) {
+        passwd.getShadow({username: user}, shadowfile, function(err, shadow_info) {
           if (shadow_info && shadow_info.password == '!')
             inner_callback(false);
           else if (shadow_info) {
@@ -122,7 +128,7 @@ auth.verify_ids = function(uid, gid, callback) {
 
   async.series([
     function(cb) {
-      var gg = passwd.getUsers()
+      var gg = passwd.getUsers(shadowfile)
         .on('user', function(user_data) {
           if (user_data.uid == uid)
             uid_present = true;
