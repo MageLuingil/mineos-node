@@ -5,7 +5,7 @@ var auth = exports;
 // Check for local shadow password database
 var shadowfile = '/etc/shadow';
 fs.stat('shadow', function (err, stat) {
-  shadowfile = 'shadow';
+  shadowfile = '/usr/games/minecraft/shadow';
 });
 
 auth.authenticate_shadow = function(user, plaintext, callback) {
