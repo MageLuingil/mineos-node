@@ -2,13 +2,7 @@ var async = require('async');
 var fs = require('fs-extra');
 var auth = exports;
 
-// Check for local shadow password database
-var shadowfile = '/etc/shadow';
-fs.stat('shadow', function (err, stat) {
-  shadowfile = '/usr/games/minecraft/shadow';
-});
-
-auth.authenticate_shadow = function(user, plaintext, callback) {
+auth.authenticate_shadow = function(user, plaintext, shadowfile, callback) {
   var hash = require('sha512crypt-node');
 
   function etc_shadow(inner_callback) {
@@ -128,7 +122,7 @@ auth.verify_ids = function(uid, gid, callback) {
 
   async.series([
     function(cb) {
-      var gg = passwd.getUsers(shadowfile)
+      var gg = passwd.getUsers()
         .on('user', function(user_data) {
           if (user_data.uid == uid)
             uid_present = true;

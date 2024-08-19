@@ -32,12 +32,12 @@ var opt = getopt.create([
 var config_file = (opt.options || {}).config_file;
 
 // Authorization
-var localAuth = function (username, password) {
+var localAuth = function (username, password, shadowfile) {
   var Q = require('q');
   var auth = require('./auth');
   var deferred = Q.defer();
 
-  auth.authenticate_shadow(username, password, function(authed_user) {
+  auth.authenticate_shadow(username, password, shadowfile, function(authed_user) {
     if (authed_user)
         deferred.resolve({ username: authed_user });
     else
@@ -58,11 +58,9 @@ passport.deserializeUser(function(obj, done) {
   done(null, obj);
 });
 
-// Use the LocalStrategy within Passport to login users.
-passport.use('local-signin', new LocalStrategy(
-  {passReqToCallback : true}, //allows us to pass back the request to the callback
-  function(req, username, password, done) {
-    localAuth(username, password)
+function makeLocalStrategyHandler(shadowfile) {
+  return function(req, username, password, done) {
+    localAuth(username, password, shadowfile)
     .then(function (user) {
       if (user) {
         console.log('Successful login attempt for username:', username);
@@ -90,7 +88,7 @@ passport.use('local-signin', new LocalStrategy(
       done(null);
     });
   }
-));
+}
 
 // clean up sessions that go stale over time
 function session_cleanup() {
@@ -121,8 +119,6 @@ app.use(expressSession({
   resave: false,
   saveUninitialized: false
 }));
-app.use(passport.initialize());
-app.use(passport.session());
 
 var io = require('socket.io')(http)
 io.use(passportSocketIO.authorize({
@@ -188,6 +184,18 @@ mineos.dependencies(function(err, binaries) {
     console.error('Aborting startup.');
     process.exit(4); 
   }
+  
+  // Use the LocalStrategy within Passport to login users.
+  var shadowfile = '/etc/shadow';
+  if ('shadowfile' in mineos_config) {
+    shadowfile = mineos_config['shadowfile'];
+  }
+  passport.use('local-signin', new LocalStrategy(
+    {passReqToCallback : true}, //allows us to pass back the request to the callback
+    makeLocalStrategyHandler(shadowfile)
+  ));
+  app.use(passport.initialize());
+  app.use(passport.session());
 
   var be = new server.backend(base_directory, io, mineos_config);
 
